@@ -1,0 +1,1 @@
+CreateObject("WScript.Shell").Run "pythonw scaling_main.py", 0, False

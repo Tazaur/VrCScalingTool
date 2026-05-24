@@ -1,0 +1,6 @@
+__pycache__/
+build/
+dist/
+*.pyc
+settings.json
+slots.json
