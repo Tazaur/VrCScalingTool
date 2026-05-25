@@ -5,13 +5,13 @@ A lightweight Windows desktop app for controlling your VRChat avatar's eye heigh
 ## Features
 
 - Set eye height from **0.01m to 20m** via OSC
-- **5 save slots** (configurable 1–10) with custom names
+- **1-10 save slots** (defaults to 5) with custom names
 - **Slot 1** can be triggered in-game via an avatar Bool parameter (`ScaleOverride`)
 - **Nudge** buttons (±0.01m per press)
 - **Tiny** and **Normal** quick-apply buttons
 - **1-level undo**
-- **Global hotkeys** — `Ctrl+Shift+1–9` loads slots from anywhere
-- **System tray** — minimizes to tray instead of closing
+- **Global hotkeys** - `Ctrl+Shift+1–9` loads slots from anywhere
+- **System tray** - minimizes to tray instead of closing
 - **Always-on-top** pin
 - **Auto update checker** on launch with manual check button
 
@@ -19,7 +19,7 @@ A lightweight Windows desktop app for controlling your VRChat avatar's eye heigh
 
 Grab the latest `.exe` from [Releases](https://github.com/Tazaur/VrCScalingTool/releases).
 
-No install needed — just run the EXE.
+No install needed - just run the EXE.
 
 ## Building from source
 
