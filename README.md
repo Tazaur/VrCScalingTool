@@ -1,3 +1,4 @@
+<img width="850" height="523" alt="Screenshot 2026-05-25 083642" src="https://github.com/user-attachments/assets/806efe72-c492-4ac2-9718-13a9c9740d66" />
 # Tazaur's VrC Scaling Tool
 
 A lightweight Windows desktop app for controlling your VRChat avatar's eye height via OSC, with a wider range than VRChat's default menu allows.
