@@ -8,11 +8,21 @@ import tkinter as tk
 import config as _cfg
 import updater
 import steamvr
+import oscquery
 from PIL import Image as PILImage, ImageTk
 from persistence import SLOT_COUNT, load_settings, save_settings
 from slots import save_slot, load_slot, clear_slot, clamp, slot_is_empty, get_slot_name, set_slot_name
 from osc_client import apply_scale, probe_param, init_client
 from osc_server import register_handler, start_server
+
+try:
+    import openvr
+    _openvr_available = True
+except ImportError:
+    _openvr_available = False
+
+_openvr_init  = False
+_openvr_error = ""
 
 try:
     import pystray
@@ -63,7 +73,8 @@ def handle_avatar_change(_address, *_):
 
 register_handler(f"/avatar/parameters/{SCALE_OVERRIDE_PARAM}", handle_scale_override)
 register_handler("/avatar/change", handle_avatar_change)
-start_server(RECEIVE_PORT)
+_osc_port  = start_server(0 if oscquery.available() else RECEIVE_PORT)
+_server_ok = _osc_port is not None
 
 ################################################################################
 # --- Scale tracking for undo ---
@@ -454,9 +465,17 @@ def _open_settings():
             def _do():
                 ok, err = steamvr.register(sys.executable)
                 if ok:
+                    if _openvr_init:
+                        try:
+                            openvr.VRApplications().addApplicationManifest(
+                                steamvr._manifest_path(), False
+                            )
+                        except Exception:
+                            pass
                     window.after(0, lambda: (
                         svr_status.config(text="Registered ✓", fg="#4a9"),
                         svr_btn.config(text="Unregister", state="normal", bg="#555"),
+                        svr_path_lbl.config(text="Restart SteamVR to apply" if _openvr_init else "Launch with SteamVR open to activate"),
                     ))
                 else:
                     window.after(0, lambda: (
@@ -472,6 +491,12 @@ def _open_settings():
                         fg="white", width=10)
     svr_btn.pack(side="left")
     Tooltip(svr_btn, "Adds this tool to SteamVR's startup list.\nIf you move the EXE, just launch once to update the path.")
+
+    _svr_sub    = _openvr_error if _openvr_error else (steamvr.get_registered_path() or "")
+    _svr_sub_fg = "#e74c3c" if _openvr_error else "#555"
+    svr_path_lbl = tk.Label(dialog, text=_svr_sub, fg=_svr_sub_fg,
+                            bg="#1e1e1e", font=("Arial", 7), anchor="w")
+    svr_path_lbl.pack(fill="x", padx=16, pady=(0, 4))
 
     tk.Label(dialog, text="⚠  Restart required for changes to take effect.",
              fg="#e74c3c", bg="#1e1e1e", font=("Arial", 8)).pack(pady=(10, 2))
@@ -710,6 +735,12 @@ def _save_window_pos():
     save_settings(_settings)
 
 def _quit_app(*_):
+    oscquery.stop()
+    if _openvr_init:
+        try:
+            openvr.shutdown()
+        except Exception:
+            pass
     window.after(0, lambda: (_save_window_pos(), window.destroy()))
 
 def _on_close():
@@ -896,8 +927,23 @@ window.bind("<Configure>", _enforce_size)
 _setup_tray()
 _setup_hotkeys()
 steamvr.ensure_path_current()
+if _openvr_available:
+    try:
+        openvr.init(openvr.VRApplication_Background)
+        _openvr_init = True
+        if steamvr.is_registered():
+            openvr.VRApplications().addApplicationManifest(steamvr._manifest_path(), False)
+    except Exception as _e:
+        _openvr_error = str(_e)
 window.protocol("WM_DELETE_WINDOW", _on_close)
-probe_param(SCALE_OVERRIDE_PARAM)
+if _server_ok:
+    if oscquery.available():
+        threading.Thread(target=lambda: oscquery.start("TazaursVrCScalingTool", _osc_port, SCALE_OVERRIDE_PARAM), daemon=True).start()
+    probe_param(SCALE_OVERRIDE_PARAM)
+else:
+    window.after(200, lambda: set_status(
+        f"Port {RECEIVE_PORT} in use — change Receive port in Settings", "#e74c3c", temporary=False
+    ))
 _check_update(silent=True)
 window.deiconify()
 window.mainloop()
