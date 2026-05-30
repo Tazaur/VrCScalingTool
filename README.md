@@ -12,6 +12,7 @@ A lightweight Windows desktop app for controlling your VRChat avatar's eye heigh
 - **Tiny** and **Normal** quick-apply buttons
 - **1-level undo**
 - **Global hotkeys** - `Ctrl+Shift+1–9` loads slots from anywhere
+- **SteamVR integration** - register to auto-launch with SteamVR
 - **System tray** - minimizes to tray instead of closing
 - **Always-on-top** pin
 - **Auto update checker** on launch with manual check button
