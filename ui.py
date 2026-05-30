@@ -1,12 +1,13 @@
 import sys
 import os
-import json
 import ctypes
+import tempfile
 import threading
 import webbrowser
-import urllib.request
 import tkinter as tk
 import config as _cfg
+import updater
+import steamvr
 from PIL import Image as PILImage, ImageTk
 from persistence import SLOT_COUNT, load_settings, save_settings
 from slots import save_slot, load_slot, clear_slot, clamp, slot_is_empty, get_slot_name, set_slot_name
@@ -261,13 +262,6 @@ class Tooltip:
 
 _always_on_top = _settings.get("always_on_top", False)
 
-def toggle_always_on_top():
-    global _always_on_top
-    _always_on_top = not _always_on_top
-    window.attributes("-topmost", _always_on_top)
-    pin_btn.config(fg="#7aadff" if _always_on_top else "#666")
-    _settings["always_on_top"] = _always_on_top
-    save_settings(_settings)
 
 ################################################################################
 # --- About dialog ---
@@ -310,8 +304,17 @@ def _open_about():
         tk.Label(dialog, text=line, fg=color, bg="#1e1e1e",
                  font=("Arial", 9)).pack(padx=24, anchor="w")
 
-    tk.Button(dialog, text="OK", command=dialog.destroy,
-              bg="#333", fg="white", width=10).pack(pady=(14, 16))
+    tk.Frame(dialog, bg="#333", height=1).pack(fill="x", padx=20, pady=12)
+
+    btn_frame = tk.Frame(dialog, bg="#1e1e1e")
+    btn_frame.pack(pady=(0, 16))
+    tk.Button(btn_frame, text="GitHub", command=lambda: webbrowser.open(f"https://github.com/Tazaur"),
+              bg="#2a2a3a", fg="#7aadff", width=10).pack(side="left", padx=6)
+    tk.Button(btn_frame, text="Check for Updates",
+              command=lambda: (dialog.destroy(), _check_update(silent=False)),
+              bg="#2a2a3a", fg="#7aadff", width=16).pack(side="left", padx=6)
+    tk.Button(btn_frame, text="OK", command=dialog.destroy,
+              bg="#333", fg="white", width=10).pack(side="left", padx=6)
 
     dialog.update_idletasks()
     dw = dialog.winfo_reqwidth()
@@ -383,12 +386,92 @@ def _open_settings():
         tk.Checkbutton(hk_check_frame, text=mod, variable=v, fg="white", bg="#1e1e1e",
                        selectcolor="#333", activebackground="#1e1e1e",
                        activeforeground="white").pack(side="left", padx=(0, 6))
-    tk.Label(hk_check_frame, text="+ slot number", fg="#888", bg="#1e1e1e",
-             font=("Arial", 8)).pack(side="left")
+    hk_hint = tk.Label(hk_check_frame, fg="#888", bg="#1e1e1e", font=("Arial", 8))
+    hk_hint.pack(side="left")
+
+    def _update_hk_hint(*_):
+        if any(v.get() for v in _hk_vars.values()):
+            hk_hint.config(text="+ slot number", fg="#888")
+        else:
+            hk_hint.config(text="(disabled)", fg="#555")
+    for v in _hk_vars.values():
+        v.trace_add("write", _update_hk_hint)
+    _update_hk_hint()
 
     _section("Advanced")
     _row("Send port:",    "send_port",    _settings.get("send_port",    _cfg.SEND_PORT))
     _row("Receive port:", "receive_port", _settings.get("receive_port", _cfg.RECEIVE_PORT))
+
+    _section("Window")
+    _aot_var = tk.BooleanVar(value=_settings.get("always_on_top", False))
+    aot_frame = tk.Frame(dialog, bg="#1e1e1e")
+    aot_frame.pack(fill="x", padx=16, pady=2)
+    tk.Label(aot_frame, text="Always on top:", fg="white", bg="#1e1e1e",
+             width=22, anchor="w").pack(side="left")
+    tk.Checkbutton(aot_frame, text="Keep window above others", variable=_aot_var,
+                   fg="white", bg="#1e1e1e", selectcolor="#333",
+                   activebackground="#1e1e1e", activeforeground="white").pack(side="left")
+
+    _tray_var = tk.BooleanVar(value=_settings.get("tray_enabled", True))
+    tray_cframe = tk.Frame(dialog, bg="#1e1e1e")
+    tray_cframe.pack(fill="x", padx=16, pady=2)
+    tk.Label(tray_cframe, text="Minimize to tray:", fg="white", bg="#1e1e1e",
+             width=22, anchor="w").pack(side="left")
+    tk.Checkbutton(tray_cframe, text="Hide to system tray on close",
+                   variable=_tray_var,
+                   state="normal" if _tray_available else "disabled",
+                   fg="white" if _tray_available else "#555", bg="#1e1e1e",
+                   selectcolor="#333",
+                   activebackground="#1e1e1e", activeforeground="white").pack(side="left")
+
+    _section("Integrations")
+    svr_outer = tk.Frame(dialog, bg="#1e1e1e")
+    svr_outer.pack(fill="x", padx=16, pady=4)
+    tk.Label(svr_outer, text="SteamVR auto-launch:", fg="white", bg="#1e1e1e",
+             width=22, anchor="w").pack(side="left")
+    _svr_reg = steamvr.is_registered()
+    svr_status = tk.Label(svr_outer,
+                          text="Registered ✓" if _svr_reg else "Not registered",
+                          fg="#4a9" if _svr_reg else "#888",
+                          bg="#1e1e1e", font=("Arial", 8))
+    svr_status.pack(side="left", padx=(0, 8))
+
+    def _svr_action():
+        if steamvr.is_registered():
+            svr_btn.config(state="disabled", text="Working...")
+            def _do():
+                steamvr.unregister()
+                window.after(0, lambda: (
+                    svr_status.config(text="Not registered", fg="#888"),
+                    svr_btn.config(text="Register", state="normal", bg="#5865f2"),
+                ))
+            threading.Thread(target=_do, daemon=True).start()
+        else:
+            if not getattr(sys, "frozen", False):
+                svr_status.config(text="Only works as compiled EXE", fg="#e74c3c")
+                return
+            svr_btn.config(state="disabled", text="Working...")
+            def _do():
+                ok, err = steamvr.register(sys.executable)
+                if ok:
+                    window.after(0, lambda: (
+                        svr_status.config(text="Registered ✓", fg="#4a9"),
+                        svr_btn.config(text="Unregister", state="normal", bg="#555"),
+                    ))
+                else:
+                    window.after(0, lambda: (
+                        svr_status.config(text=f"Error: {err[:38]}", fg="#e74c3c"),
+                        svr_btn.config(text="Register", state="normal", bg="#5865f2"),
+                    ))
+            threading.Thread(target=_do, daemon=True).start()
+
+    svr_btn = tk.Button(svr_outer,
+                        text="Unregister" if _svr_reg else "Register",
+                        command=_svr_action,
+                        bg="#555" if _svr_reg else "#5865f2",
+                        fg="white", width=10)
+    svr_btn.pack(side="left")
+    Tooltip(svr_btn, "Adds this tool to SteamVR's startup list.\nIf you move the EXE, just launch once to update the path.")
 
     tk.Label(dialog, text="⚠  Restart required for changes to take effect.",
              fg="#e74c3c", bg="#1e1e1e", font=("Arial", 8)).pack(pady=(10, 2))
@@ -408,12 +491,16 @@ def _open_settings():
             new["hotkey_prefix"]             = "+".join(checked) or None
             new["send_port"]                 = int(fields["send_port"].get())
             new["receive_port"]              = int(fields["receive_port"].get())
-            new["always_on_top"]             = _always_on_top
-            new["tray_enabled"]              = _tray_enabled
+            new["always_on_top"]             = _aot_var.get()
+            new["tray_enabled"]              = _tray_var.get()
             new["empty_slot_applies_default"] = _empty_default_var.get()
         except ValueError as e:
             set_status(f"Invalid value — {e}", "red")
             return
+        global _always_on_top, _tray_enabled
+        _always_on_top = new["always_on_top"]
+        _tray_enabled  = new["tray_enabled"]
+        window.attributes("-topmost", _always_on_top)
         save_settings(new)
         _settings.update(new)
         dialog.destroy()
@@ -434,6 +521,8 @@ def _open_settings():
         default_prefix = (_cfg.HOTKEY_PREFIX or "").lower()
         for mod, var in _hk_vars.items():
             var.set(mod in default_prefix)
+        _aot_var.set(False)
+        _tray_var.set(True)
 
     tk.Button(btn_frame, text="Save",             command=_save,             bg="#5865f2", fg="white", width=10).pack(side="left", padx=6)
     tk.Button(btn_frame, text="Restore Defaults", command=_restore_defaults, bg="#555",    fg="white", width=14).pack(side="left", padx=6)
@@ -504,13 +593,7 @@ def _show_slot1_info():
 ################################################################################
 # --- Update check ---
 
-def _version_newer(a, b):
-    try:
-        return tuple(int(x) for x in a.split(".")) > tuple(int(x) for x in b.split("."))
-    except Exception:
-        return False
-
-def _show_update_dialog(version, url):
+def _show_update_dialog(version, html_url, asset_url=None):
     d = tk.Toplevel(window)
     d.title("Update Available")
     d.configure(bg="#1e1e1e")
@@ -525,20 +608,58 @@ def _show_update_dialog(version, url):
 
     tk.Frame(d, bg="#333", height=1).pack(fill="x", padx=20, pady=12)
 
-    tk.Label(d, text="Would you like to download the latest version?",
-             fg="#aaa", bg="#1e1e1e", font=("Arial", 9)).pack(padx=24)
+    can_auto = bool(asset_url) and getattr(sys, "frozen", False)
+    msg = ("A new version is ready. Click below to download\n"
+           "and replace the current EXE. A restart will be required."
+           if can_auto else
+           "Would you like to download the latest version?")
+    tk.Label(d, text=msg, fg="#aaa", bg="#1e1e1e", font=("Arial", 9),
+             justify="center").pack(padx=24)
+
+    status_lbl = tk.Label(d, text="", fg="#aaa", bg="#1e1e1e", font=("Arial", 8))
+    status_lbl.pack(pady=(4, 0))
 
     tk.Frame(d, bg="#333", height=1).pack(fill="x", padx=20, pady=12)
 
     btn_frame = tk.Frame(d, bg="#1e1e1e")
     btn_frame.pack(pady=(0, 16))
 
-    def _go():
-        webbrowser.open(url)
-        d.destroy()
+    def _on_download_error(_):
+        window.after(0, lambda: (
+            status_lbl.config(text="Download failed — try again or use browser", fg="#e74c3c"),
+            primary_btn.config(state="normal", text="Download & Update"),
+        ))
 
-    tk.Button(btn_frame, text="Download Update", command=_go,
-              bg="#5865f2", fg="white", width=14).pack(side="left", padx=6)
+    def _on_downloaded(tmp_exe):
+        def _apply():
+            updater.launch_updater(
+                tmp_exe,
+                quit_fn=_quit_app,
+                on_error=lambda msg: (
+                    status_lbl.config(text=f"Update failed: {msg}", fg="#e74c3c"),
+                    primary_btn.config(state="normal", text="Download & Update"),
+                ),
+            )
+        window.after(0, lambda: (
+            status_lbl.config(text="Applying update, app will close...", fg="#4a9"),
+            primary_btn.config(state="disabled"),
+            window.after(1500, _apply),
+        ))
+
+    def _start_download():
+        primary_btn.config(state="disabled", text="Downloading...")
+        status_lbl.config(text="Downloading update...", fg="#aaa")
+        tmp_exe = os.path.join(tempfile.gettempdir(), "TazaursVrCScalingTool_update.exe")
+        updater.download_update(asset_url, tmp_exe, _on_downloaded, _on_download_error)
+
+    if can_auto:
+        primary_btn = tk.Button(btn_frame, text="Download & Update", command=_start_download,
+                                bg="#5865f2", fg="white", width=16)
+    else:
+        primary_btn = tk.Button(btn_frame, text="Download",
+                                command=lambda: (webbrowser.open(html_url), d.destroy()),
+                                bg="#5865f2", fg="white", width=14)
+    primary_btn.pack(side="left", padx=6)
     tk.Button(btn_frame, text="Not Now", command=d.destroy,
               bg="#333", fg="white", width=10).pack(side="left", padx=6)
 
@@ -554,36 +675,23 @@ def _check_update(silent=True):
         if not silent:
             set_status("No GitHub repo configured", "#888")
         return
-    def _fetch():
-        try:
-            req = urllib.request.Request(
-                f"https://api.github.com/repos/{_cfg.GITHUB_REPO}/releases/latest",
-                headers={"User-Agent": "TazaursVrCScalingTool"}
-            )
-            with urllib.request.urlopen(req, timeout=5) as r:
-                data = json.loads(r.read())
-            tag     = data.get("tag_name", "").lstrip("v")
-            html_url = data.get("html_url", "")
-            if _version_newer(tag, _cfg.VERSION):
-                window.after(0, lambda: _show_update_dialog(tag, html_url))
-            elif not silent:
-                window.after(0, lambda: set_status("You're up to date", "#4a9"))
-        except Exception:
-            if not silent:
-                window.after(0, lambda: set_status("Update check failed", "#e74c3c"))
-    threading.Thread(target=_fetch, daemon=True).start()
+    updater.check_update(
+        _cfg.GITHUB_REPO,
+        _cfg.VERSION,
+        on_found=lambda tag, html_url, asset_url:
+            window.after(0, lambda: _show_update_dialog(tag, html_url, asset_url)),
+        on_up_to_date=lambda:
+            window.after(0, lambda: set_status("You're up to date", "#4a9")) if not silent else None,
+        on_ahead=lambda *_:
+            window.after(0, lambda: set_status(f"v{_cfg.VERSION} — not publicly available", "#888")) if not silent else None,
+        on_error=lambda:
+            window.after(0, lambda: set_status("Update check failed", "#e74c3c")) if not silent else None,
+    )
 
 ################################################################################
 # --- Tray toggle ---
 
 _tray_enabled = _settings.get("tray_enabled", True)
-
-def toggle_tray():
-    global _tray_enabled
-    _tray_enabled = not _tray_enabled
-    tray_btn.config(fg="#7aadff" if _tray_enabled else "#666")
-    _settings["tray_enabled"] = _tray_enabled
-    save_settings(_settings)
 
 ################################################################################
 # --- System tray ---
@@ -680,23 +788,6 @@ settings_btn = tk.Button(title_frame, text="⚙", fg="#666", bg="#1e1e1e", relie
 settings_btn.pack(side="right", padx=(0, 4))
 Tooltip(settings_btn, "Settings")
 
-update_btn = tk.Button(title_frame, text="↻", fg="#666", bg="#1e1e1e", relief="flat",
-                       font=("Arial", 12), command=lambda: _check_update(silent=False),
-                       cursor="hand2", bd=0)
-update_btn.pack(side="right", padx=(0, 4))
-Tooltip(update_btn, "Check for updates")
-
-tray_btn = tk.Button(title_frame, text="⬇", fg="#7aadff" if _tray_available else "#444",
-                     bg="#1e1e1e", relief="flat", font=("Arial", 11), bd=0,
-                     command=toggle_tray if _tray_available else None, cursor="hand2")
-tray_btn.pack(side="right", padx=(0, 4))
-Tooltip(tray_btn, "Minimize to system tray on close" if _tray_available else "pystray not installed")
-
-pin_btn = tk.Button(title_frame, text="📌", fg="#666", bg="#1e1e1e", relief="flat",
-                    font=("Arial", 11), command=toggle_always_on_top, cursor="hand2", bd=0)
-pin_btn.pack(side="right", padx=(0, 2))
-Tooltip(pin_btn, "Keep window always on top")
-
 about_btn = tk.Button(title_frame, text="ℹ", fg="#666", bg="#1e1e1e", relief="flat",
                       font=("Arial", 11), command=_open_about, cursor="hand2", bd=0)
 about_btn.pack(side="right")
@@ -708,9 +799,6 @@ tk.Label(window, text="Avatar Scale Control", fg="white", bg="#1e1e1e",
 
 if _always_on_top:
     window.attributes("-topmost", True)
-    pin_btn.config(fg="#7aadff")
-if not _tray_enabled and _tray_available:
-    tray_btn.config(fg="#666")
 
 # Input row
 input_frame = tk.Frame(window, bg="#1e1e1e")
@@ -807,6 +895,7 @@ window.bind("<Configure>", _enforce_size)
 
 _setup_tray()
 _setup_hotkeys()
+steamvr.ensure_path_current()
 window.protocol("WM_DELETE_WINDOW", _on_close)
 probe_param(SCALE_OVERRIDE_PARAM)
 _check_update(silent=True)
