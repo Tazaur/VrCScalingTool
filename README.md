@@ -1,7 +1,7 @@
 # Tazaur's VrCScalingTool (TVST) — Advanced VRChat Avatar OSC Scaling Tool
 
-[![GitHub release](https://shields.io)](https://github.com)
-[![Platform](https://shields.io)](https://github.com)
+[![GitHub release](https://shields.io)](https://github.com/Tazaur/VrCScalingTool/releases)
+[![Platform](https://shields.io)]
 
 **Tazaur's VrCScalingTool (TVST)** is a lightweight Windows desktop application designed to bypass the default VRChat radial menu limitations. Using VRChat's native OSC (Open Sound Control) protocol, this tool allows you to safely change your avatar eye height anywhere from **0.01m up to 20m** with precise, sub-centimeter control.
 
