@@ -1,6 +1,6 @@
 # Tazaur's VrCScalingTool (TVST) — Advanced VRChat Avatar OSC Scaling Tool
 
-![GitHub release](https://img.shields.io/github/v/release/Tazaur/VrCScalingTool?color=5865f2&label=version)
+[![GitHub release](https://img.shields.io/github/v/release/Tazaur/VrCScalingTool?color=5865f2&label=version)](https://github.com/Tazaur/VrCScalingTool/releases)
 ![GitHub downloads](https://img.shields.io/github/downloads/Tazaur/VrCScalingTool/total?color=4a9&label=downloads)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 
