@@ -59,3 +59,5 @@ Toggling it ON will load and apply Slot 1 automatically.
 ## License
 
 Free to use. If you paid for it, you were scammed.
+
+<img width="1685" height="1387" alt="TVSTScaleDisplay" src="https://github.com/user-attachments/assets/fc06317b-fca0-41b3-9ec2-afb3a3e3d830" />
