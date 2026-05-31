@@ -1,6 +1,7 @@
 No Install required! just run the .exe! :3
 
 <img width="689" height="559" alt="TVST_GUI" src="https://github.com/user-attachments/assets/45ad6613-1e77-40d9-870c-1e3af036b5ee" />
+
 # Tazaur's VrC Scaling Tool
 
 A lightweight Windows desktop app for controlling your VRChat avatar's eye height via OSC, with a wider range than VRChat's default menu allows.
