@@ -1,10 +1,9 @@
-No Install required! just run the .exe! :3
+# Tazaur's VrCScalingTool (TVST) — Advanced VRChat Avatar OSC Scaling Tool
 
-<img width="689" height="559" alt="TVST_GUI" src="https://github.com/user-attachments/assets/45ad6613-1e77-40d9-870c-1e3af036b5ee" />
+[![GitHub release](https://shields.io)](https://github.com)
+[![Platform](https://shields.io)](https://github.com)
 
-# Tazaur's VrC Scaling Tool
-
-A lightweight Windows desktop app for controlling your VRChat avatar's eye height via OSC, with a wider range than VRChat's default menu allows.
+**Tazaur's VrCScalingTool (TVST)** is a lightweight Windows desktop application designed to bypass the default VRChat radial menu limitations. Using VRChat's native OSC (Open Sound Control) protocol, this tool allows you to safely change your avatar eye height anywhere from **0.01m up to 20m** with precise, sub-centimeter control.
 
 ## Features
 
@@ -19,6 +18,8 @@ A lightweight Windows desktop app for controlling your VRChat avatar's eye heigh
 - **System tray** - minimizes to tray instead of closing
 - **Always-on-top** pin
 - **Auto update checker** on launch with manual check button
+
+<img width="689" height="559" alt="TVST_GUI" src="https://github.com/user-attachments/assets/45ad6613-1e77-40d9-870c-1e3af036b5ee" />
 
 ## Download
 
@@ -63,3 +64,14 @@ Toggling it ON will load and apply Slot 1 automatically.
 Free to use. If you paid for it, you were scammed.
 
 <img width="1685" height="1387" alt="TVSTScaleDisplay" src="https://github.com/user-attachments/assets/fc06317b-fca0-41b3-9ec2-afb3a3e3d830" />
+
+## Frequently Asked Questions (FAQ)
+
+### How do I scale my VRChat avatar past the radial menu limits?
+VRChat's built-in expression menu restricts avatar scaling. Tazaur's VrCScalingTool uses the OSC system to send eye-height values directly to the client, allowing scales from 0.01m to 20m.
+
+### Will using an OSC scaling tool get me banned in VRChat?
+No. This tool utilizes VRChat's officially supported OSC API and standard avatar parameters (`EyeHeight`). It does not modify game files, inject code, or break the Terms of Service.
+
+### Can I trigger avatar scaling macros using standard hotkeys?
+Yes. TVST includes global Windows hotkeys (`Ctrl+Shift+1-9`) so you can load saved height profiles instantly while in-game, without Alt-Tabbing.
