@@ -1,7 +1,7 @@
 No Install required! just run the .exe! :3
 
 If youre using Edge web browser to download the app, It may be flagged by Microsoft because its unverified. To keep it, you have to click the '...' on the download and choose "Keep" then "Keep Anyway" in the "Delete" Dropdown arrow.
-<img width="850" height="523" alt="Screenshot 2026-05-25 083642" src="https://github.com/user-attachments/assets/806efe72-c492-4ac2-9718-13a9c9740d66" />
+<img width="689" height="559" alt="TVST_GUI" src="https://github.com/user-attachments/assets/45ad6613-1e77-40d9-870c-1e3af036b5ee" />
 # Tazaur's VrC Scaling Tool
 
 A lightweight Windows desktop app for controlling your VRChat avatar's eye height via OSC, with a wider range than VRChat's default menu allows.
