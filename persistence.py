@@ -1,8 +1,18 @@
 import json
 import os
+import shutil
 from config import SLOT_COUNT as _cfg_slot_count
 
-_base     = os.path.join(os.path.expanduser("~"), "Documents", "TazaursVrCScalingTool")
+_old_base = os.path.join(os.path.expanduser("~"), "Documents", "TazaursVrCScalingTool")
+_base     = os.path.join(os.path.expanduser("~"), "Documents", "TazaurApplications", "TazaursVrCScalingTool")
+
+if os.path.isdir(_old_base):
+    if not os.path.isdir(_base):
+        os.makedirs(os.path.dirname(_base), exist_ok=True)
+        shutil.move(_old_base, _base)
+    else:
+        shutil.rmtree(_old_base)
+
 os.makedirs(_base, exist_ok=True)
 DATA_FILE = os.path.join(_base, "data.json")
 

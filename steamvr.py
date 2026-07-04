@@ -8,7 +8,7 @@ _APP_DESC = "VRChat avatar scale controller via OSC"
 
 
 def _data_dir():
-    return os.path.join(os.path.expanduser("~"), "Documents", "TazaursVrCScalingTool")
+    return os.path.join(os.path.expanduser("~"), "Documents", "TazaurApplications", "TazaursVrCScalingTool")
 
 
 def _manifest_path():

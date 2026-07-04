@@ -4,11 +4,11 @@
 ![GitHub downloads](https://img.shields.io/github/downloads/Tazaur/VrCScalingTool/total?color=4a9&label=downloads)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 
-**Tazaur's VrCScalingTool (TVST)** is a lightweight Windows desktop application designed to bypass the default VRChat radial menu limitations. Using VRChat's native OSC (Open Sound Control) protocol, this tool allows you to safely change your avatar eye height anywhere from **0.01m up to 20m** with precise, sub-centimeter control.
+**Tazaur's VrCScalingTool (TVST)** is a lightweight Windows desktop application designed to bypass the default VRChat radial menu limitations. Using VRChat's native OSC (Open Sound Control) protocol, this tool allows you to safely change your avatar eye height anywhere from **0.01m up to 50m** with precise, sub-centimeter control.
 
 ## Features
 
-- Set eye height from **0.01m to 20m** via OSC
+- Set eye height from **0.01m to 50m** via OSC
 - **1-10 save slots** (defaults to 5) with custom names
 - **Slot 1** can be triggered in-game via an avatar Bool parameter (`ScaleOverride`)
 - **Nudge** buttons (±0.01m per press)
@@ -57,7 +57,7 @@ Toggling it ON will load and apply Slot 1 automatically.
 ## Notes
 
 - OSC must be enabled in VRChat for the tool to communicate with your avatar
-- Save data and settings are stored in `Documents\TazaursVrCScalingTool\data.json`
+- Save data and settings are stored in `Documents\TazaurApplications\TazaursVrCScalingTool\data.json`
 - Please don't abuse extreme scales in public lobbies
 
 ## License
@@ -69,7 +69,7 @@ Free to use. If you paid for it, you were scammed.
 ## Frequently Asked Questions (FAQ)
 
 ### How do I scale my VRChat avatar past the radial menu limits?
-VRChat's built-in expression menu restricts avatar scaling. Tazaur's VrCScalingTool uses the OSC system to send eye-height values directly to the client, allowing scales from 0.01m to 20m.
+VRChat's built-in expression menu restricts avatar scaling. Tazaur's VrCScalingTool uses the OSC system to send eye-height values directly to the client, allowing scales from 0.01m to 50m.
 
 ### Will using an OSC scaling tool get me banned in VRChat?
 No. This tool utilizes VRChat's officially supported OSC API and standard avatar parameters (`EyeHeight`). It does not modify game files, inject code, or break the Terms of Service.

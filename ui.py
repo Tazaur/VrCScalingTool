@@ -272,6 +272,7 @@ class Tooltip:
 # --- Always-on-top ---
 
 _always_on_top = _settings.get("always_on_top", False)
+_open_dialogs  = set()
 
 
 ################################################################################
@@ -285,6 +286,8 @@ def _open_about():
     dialog.transient(window)
     dialog.attributes("-toolwindow", True)
     dialog.grab_set()
+    _open_dialogs.add(dialog)
+    dialog.bind("<Destroy>", lambda e: _open_dialogs.discard(dialog) if e.widget is dialog else None)
 
     try:
         _about_img = ImageTk.PhotoImage(PILImage.open(_ico_path).resize((64, 64), PILImage.LANCZOS))
@@ -319,12 +322,22 @@ def _open_about():
 
     btn_frame = tk.Frame(dialog, bg="#1e1e1e")
     btn_frame.pack(pady=(0, 16))
-    tk.Button(btn_frame, text="GitHub", command=lambda: webbrowser.open(f"https://github.com/Tazaur"),
-              bg="#2a2a3a", fg="#7aadff", width=10).pack(side="left", padx=6)
-    tk.Button(btn_frame, text="Check for Updates",
+
+    row1 = tk.Frame(btn_frame, bg="#1e1e1e")
+    row1.pack(pady=(0, 6))
+    tk.Button(row1, text="Check for Updates",
               command=lambda: (dialog.destroy(), _check_update(silent=False)),
               bg="#2a2a3a", fg="#7aadff", width=16).pack(side="left", padx=6)
-    tk.Button(btn_frame, text="OK", command=dialog.destroy,
+    tk.Button(row1, text="Force Update",
+              command=lambda: (dialog.destroy(), _check_update(silent=False, force=True)),
+              bg="#2a2a3a", fg="#666", width=14).pack(side="left", padx=6)
+
+    row2 = tk.Frame(btn_frame, bg="#1e1e1e")
+    row2.pack()
+    tk.Button(row2, text="GitHub",
+              command=lambda: webbrowser.open("https://github.com/Tazaur"),
+              bg="#2a2a3a", fg="#7aadff", width=10).pack(side="left", padx=6)
+    tk.Button(row2, text="OK", command=dialog.destroy,
               bg="#333", fg="white", width=10).pack(side="left", padx=6)
 
     dialog.update_idletasks()
@@ -337,6 +350,16 @@ def _open_about():
 ################################################################################
 # --- Settings dialog ---
 
+def _build_instruction_text():
+    lines = [
+        "• Click a slot to load and apply it",
+        "• Right-click a slot for options (save, rename, clear)",
+        "• Press ℹ on Slot 1 to set up in-game triggering",
+    ]
+    if HOTKEY_PREFIX and _hotkeys_available:
+        lines.append(f"• {HOTKEY_PREFIX.upper()}+1–{min(SLOT_COUNT, 9)} loads slots globally")
+    return "\n".join(lines)
+
 def _open_settings():
     dialog = tk.Toplevel(window)
     dialog.title("Settings")
@@ -345,6 +368,8 @@ def _open_settings():
     dialog.transient(window)
     dialog.attributes("-toolwindow", True)
     dialog.grab_set()
+    _open_dialogs.add(dialog)
+    dialog.bind("<Destroy>", lambda e: _open_dialogs.discard(dialog) if e.widget is dialog else None)
 
     fields = {}
 
@@ -459,7 +484,7 @@ def _open_settings():
             threading.Thread(target=_do, daemon=True).start()
         else:
             if not getattr(sys, "frozen", False):
-                svr_status.config(text="Only works as compiled EXE", fg="#e74c3c")
+                svr_path_lbl.config(text="Only works as compiled EXE", fg="#e74c3c")
                 return
             svr_btn.config(state="disabled", text="Working...")
             def _do():
@@ -498,11 +523,18 @@ def _open_settings():
                             bg="#1e1e1e", font=("Arial", 7), anchor="w")
     svr_path_lbl.pack(fill="x", padx=16, pady=(0, 4))
 
-    tk.Label(dialog, text="⚠  Restart required for changes to take effect.",
-             fg="#e74c3c", bg="#1e1e1e", font=("Arial", 8)).pack(pady=(10, 2))
+    restart_lbl = tk.Label(dialog, text="⚠  Restart required for changes to take effect.",
+                           fg="#1e1e1e", bg="#1e1e1e", font=("Arial", 8))
+    restart_lbl.pack(pady=(10, 2))
 
     btn_frame = tk.Frame(dialog, bg="#1e1e1e")
     btn_frame.pack(pady=(2, 12))
+
+    def _mark_dirty(*_):
+        restart_lbl.config(fg="#e74c3c")
+
+    for _k in ("slot_count", "scale_override_param", "send_port", "receive_port"):
+        fields[_k].bind("<KeyRelease>", _mark_dirty)
 
     def _save():
         try:
@@ -522,14 +554,33 @@ def _open_settings():
         except ValueError as e:
             set_status(f"Invalid value — {e}", "red")
             return
-        global _always_on_top, _tray_enabled
+        _hard = {"slot_count", "scale_override_param", "send_port", "receive_port"}
+        needs_restart = any(new.get(k) != _settings.get(k) for k in _hard)
+
+        global _always_on_top, _tray_enabled, SCALE_DEFAULT, SCALE_TINY, NUDGE_STEP, HOTKEY_PREFIX
         _always_on_top = new["always_on_top"]
         _tray_enabled  = new["tray_enabled"]
+        SCALE_DEFAULT  = new["scale_default"]
+        SCALE_TINY     = new["scale_tiny"]
+        NUDGE_STEP     = new["nudge_step"]
         window.attributes("-topmost", _always_on_top)
+        if _hotkeys_available and new["hotkey_prefix"] != HOTKEY_PREFIX:
+            HOTKEY_PREFIX = new["hotkey_prefix"]
+            try:
+                keyboard.unhook_all_hotkeys()
+            except Exception:
+                pass
+            _setup_hotkeys()
+        else:
+            HOTKEY_PREFIX = new["hotkey_prefix"]
         save_settings(new)
         _settings.update(new)
+        instruction_lbl.config(text=_build_instruction_text())
         dialog.destroy()
-        set_status("Settings saved — restart to apply", "#aaa")
+        if needs_restart:
+            set_status("Settings saved — restart to apply", "#e74c3c")
+        else:
+            set_status("Settings applied", "#4a9")
 
     def _restore_defaults():
         for key, val in {
@@ -556,9 +607,25 @@ def _open_settings():
     dialog.update_idletasks()
     dw = dialog.winfo_reqwidth()
     dh = dialog.winfo_reqheight()
-    x  = window.winfo_x() + (window.winfo_width()  - dw) // 2
-    y  = window.winfo_y() + (window.winfo_height() - dh) // 2
+    _sdx = _settings.get("settings_dialog_dx")
+    _sdy = _settings.get("settings_dialog_dy")
+    if _sdx is not None and _sdy is not None:
+        x = window.winfo_x() + _sdx
+        y = window.winfo_y() + _sdy
+    else:
+        x = window.winfo_x() + (window.winfo_width()  - dw) // 2
+        y = window.winfo_y() + (window.winfo_height() - dh) // 2
     dialog.geometry(f"{dw}x{dh}+{x}+{y}")
+
+    def _on_dialog_destroy(event):
+        if event.widget is dialog:
+            try:
+                _settings["settings_dialog_dx"] = dialog.winfo_x() - window.winfo_x()
+                _settings["settings_dialog_dy"] = dialog.winfo_y() - window.winfo_y()
+                save_settings(_settings)
+            except Exception:
+                pass
+    dialog.bind("<Destroy>", _on_dialog_destroy)
 
 ################################################################################
 # --- Slot 1 info dialog ---
@@ -695,14 +762,14 @@ def _show_update_dialog(version, html_url, asset_url=None):
     y  = window.winfo_y() + (window.winfo_height() - dh) // 2
     d.geometry(f"{dw}x{dh}+{x}+{y}")
 
-def _check_update(silent=True):
+def _check_update(silent=True, force=False):
     if not _cfg.GITHUB_REPO:
         if not silent:
             set_status("No GitHub repo configured", "#888")
         return
     updater.check_update(
         _cfg.GITHUB_REPO,
-        _cfg.VERSION,
+        "0.0.0" if force else _cfg.VERSION,
         on_found=lambda tag, html_url, asset_url:
             window.after(0, lambda: _show_update_dialog(tag, html_url, asset_url)),
         on_up_to_date=lambda:
@@ -728,6 +795,28 @@ def _hide_to_tray():
 
 def _show_from_tray(*_):
     window.after(0, lambda: (window.deiconify(), window.lift()))
+
+def _reset_window_pos(*_):
+    def _do():
+        for child in list(_open_dialogs):
+            try:
+                child.destroy()
+            except Exception:
+                pass
+        for key in ("window_x", "window_y", "settings_dialog_dx", "settings_dialog_dy"):
+            _settings.pop(key, None)
+        save_settings(_settings)
+        window.deiconify()
+        window.update_idletasks()
+        sw = window.winfo_screenwidth()
+        sh = window.winfo_screenheight()
+        ww = window.winfo_width()
+        wh = window.winfo_height()
+        wx = (sw - ww) // 2
+        wy = (sh - wh) // 2
+        window.geometry(f"+{wx}+{wy}")
+        window.lift()
+    window.after(0, _do)
 
 def _save_window_pos():
     _settings["window_x"] = window.winfo_x()
@@ -772,6 +861,7 @@ def _setup_tray():
 
     menu = pystray.Menu(
         pystray.MenuItem("Show", _show_from_tray, default=True),
+        pystray.MenuItem("Reset Window Position", _reset_window_pos),
         pystray.Menu.SEPARATOR,
         *slot_items,
         pystray.Menu.SEPARATOR,
@@ -845,7 +935,7 @@ tk.Button(input_frame, text="−", command=lambda: nudge(-NUDGE_STEP),
 tk.Button(input_frame, text="+", command=lambda: nudge(NUDGE_STEP),
           bg="#333", fg="white", width=2).grid(row=0, column=4, padx=(1, 5))
 
-tk.Label(window, text=f"(Range: 0.01 – 20.0  •  Nudge: ±{NUDGE_STEP}m)",
+tk.Label(window, text=f"(Range: {_cfg.SCALE_MIN} – {_cfg.SCALE_MAX}  •  Nudge: ±{NUDGE_STEP}m)",
          fg="#888", bg="#1e1e1e", font=("Arial", 8)).pack()
 
 tk.Frame(window, bg="#444", height=1).pack(fill="x", padx=20, pady=8)
@@ -859,8 +949,9 @@ instruction_lines = [
 ]
 if HOTKEY_PREFIX and _hotkeys_available:
     instruction_lines.append(f"• {HOTKEY_PREFIX.upper()}+1–{min(SLOT_COUNT, 9)} loads slots globally")
-tk.Label(window, text="\n".join(instruction_lines), fg="#888", bg="#1e1e1e",
-         font=("Arial", 8), justify="left").pack(padx=20, anchor="w")
+instruction_lbl = tk.Label(window, text="\n".join(instruction_lines), fg="#888", bg="#1e1e1e",
+                           font=("Arial", 8), justify="left")
+instruction_lbl.pack(padx=20, anchor="w")
 
 slot_frame = tk.Frame(window, bg="#1e1e1e")
 slot_frame.pack(pady=8)
