@@ -20,7 +20,7 @@
 - **Always-on-top** pin
 - **Auto update checker** on launch with manual check button
 
-<img width="689" height="559" alt="TVST_GUI" src="https://github.com/user-attachments/assets/45ad6613-1e77-40d9-870c-1e3af036b5ee" />
+<img width="656" height="517" alt="Screenshot 2026-07-04 231701" src="https://github.com/user-attachments/assets/48bbcbe1-e038-4312-aa42-a9f3843de2be" />
 
 ## Download
 
@@ -60,11 +60,12 @@ Toggling it ON will load and apply Slot 1 automatically.
 - Save data and settings are stored in `Documents\TazaurApplications\TazaursVrCScalingTool\data.json`
 - Please don't abuse extreme scales in public lobbies
 
+
 ## License
 
 Free to use. If you paid for it, you were scammed.
 
-<img width="1685" height="1387" alt="TVSTScaleDisplay" src="https://github.com/user-attachments/assets/fc06317b-fca0-41b3-9ec2-afb3a3e3d830" />
+<img width="1685" height="1387" alt="NewScaleGraphic" src="https://github.com/user-attachments/assets/5dba326d-f422-471b-abc2-7c56cf8f62ef" />
 
 ## Frequently Asked Questions (FAQ)
 
